@@ -19,7 +19,9 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
+;; This is rought mode for ferm tool. It does basic highlighting and
+;; indentation, derived from shell mode.  There is too much matchers, I am
+;; going to add them on demand.
 ;;
 
 ;;; Code:
@@ -29,84 +31,65 @@
 (defvar ferm-mode-hook nil
   "Hook called when entering `ferm-mode'.")
 
-(defmacro /ferm-define-face-variable (name attr docstring)
-  `(progn
-     (defvar ,name (quote ,name) ,docstring)
-     (defface ,name '((t ,attr)) ,docstring)))
+(defconst ferm-terminal-target-list
+  (list "ACCEPT" "DROP" "REJECT" "RETURN" "NOP" "CLASSIFY" "CLUSTERIP" "CONNMARK"
+	"CONNSECMARK" "DNAT" "ECN" "HL" "IPV4OPTSSTRIP" "LOG" "MARK" "MASQUERADE"
+	"MIRROR" "NETMAP" "NOTRACK" "NFLOG" "NFQUEUE" "QUEUE" "REDIRECT" "SAME"
+	"SECMARK" "SET" "SNAT" "TCPMSS" "TOS" "TTL" "ULOG"))
+(defconst ferm-module-name-list
+  (list "account" "addrtype" "ah" "comment" "condition" "connbytes" "connlimit"
+	"connmark" "conntrack" "ecn" "esp" "eui64" "fuzzy" "hbh" "hl" "helper"
+	"icmp" "iprange" "ipv4options" "ipv6header" "hashlimit" "length" "limit"
+	"mac" "mh" "multiport" "nth" "osf" "owner" "physdev" "pkttype" "policy"
+	"psd" "quota" "random" "realm" "recent" "rt" "set" "state" "statistic"
+	"string" "tcpmss" "time" "tos" "ttl" "u32" "unclean"))
+(defconst ferm-match-keyword-list
+  ;; A lot more to add
+  (list "interface" "outerface" "protocol" "saddr" "daddr" "fragment"
+	"sport" "dport" "syn" "mac" "state"))
 
-(/ferm-define-face-variable ferm-location-keyword-face
-    (:inherit font-lock-keyword-face)
-    "Face to use for location keywords.")
-(/ferm-define-face-variable ferm-terminal-target-face
-    (:inherit font-lock-preprocessor-face)
-    "Face to use for terminal targets.")
-(/ferm-define-face-variable ferm-predefined-chain-face
-    (:inherit font-lock-preprocessor-face)
-    "Face to use for builtin chains.")
-(/ferm-define-face-variable ferm-basic-match-keyword-face
-    (:inherit font-lock-builtin-face)
-    "Face to use for basic match keywords.")
-(/ferm-define-face-variable ferm-basic-target-keyword-face
-    (:inherit font-lock-variable-name-face)
-    "Face to use for basic target keywords.")
-(/ferm-define-face-variable ferm-module-name-face
-    (:inherit font-lock-function-name-face)
-    "Face to use for loadable modules names.")
-(/ferm-define-face-variable ferm-module-match-keyword-face
-    (:inherit font-lock-type-face)
-    "Face to use for match keywords exported by modules.")
 (/ferm-define-face-variable ferm-automatic-variable-face
     (:inherit font-lock-doc-face)
     "Face to use for ferm automatic variables")
-(/ferm-define-face-variable ferm-function-declaration-face
-    (:inherit font-lock-function-name-face)
-    "Face to use for function declaration.")
-(/ferm-define-face-variable ferm-function-call-face
-    (:inherit font-lock-warning-face)
-    "Face to use for function calls.")
-(/ferm-define-face-variable ferm-lang-keyword-face
-    (:inherit font-lock-keyword-face)
-    "Face to use for ferm syntax elements.")
-(/ferm-define-face-variable ferm-builtin-function-face
-    (:inherit font-lock-builtin-face)
-    "Face to use for ferm builtin functions.")
-
-(defvar ferm-location-keyword-face 'ferm-location-keyword-face
-  "Face name to use for location keywords.")
-(defface ferm-location-keyword-face
-
-(defconst ferm-mode-keyword-list
-  '("table" "chain" "policy" "mod"))
-(defconst ferm-mode-constant-list
-  '("ACCEPT" "DROP" "REJECT"))
-(defconst ferm-mode-preproces-list
-  '("INPUT" "OUTPUT" "FORWARD"))
-(defconst ferm-mode-builtin-list
-  '("filter"))
-(defconst ferm-mode-font-lock-list nil)
-(defconst ferm-mode-auto-mode-list nil)
-(defconst ferm-mode-function-list nil)
-
 
 (define-derived-mode ferm-mode shell-script-mode "ferm"
   (font-lock-add-keywords
-   nil (list
-	(cons
-	 (rx "mod" (+ blank) (group-n 2 (+ word)))
-	 '(2 font-lock-variable-name-face))
-	  ;;(2 font-lock-variable-name-face)
-	  )))
-	;; (cons (regexp-opt ferm-mode-builtin-list 'words)
-	;;       'font-lock-builtin-face)
-	;; (cons (regexp-opt ferm-mode-keyword-list 'words)
-	;;       'font-lock-keyword-face)
-	;; (cons (regexp-opt ferm-mode-preproces-list 'words)
-	;;       'font-lock-preprocessor-face)
-	;; (cons (regexp-opt ferm-mode-constant-list 'words)
-	;;       'font-lock-constant-face))))
-
-
-
-
+   nil
+   (list
+    (cons (rx
+	   (or (group "domain" (+ blank)
+		      (group-n 2 word-start (or "ip" "ipv6") word-end))
+	       (group "table" (+ blank)
+		      (group-n 2 word-start
+			       (or "filter" "nat" "mangle") word-end))
+	       (group "policy" (+ blank)
+		      (group-n 2 word-start
+			       (or (eval (cons 'or ferm-terminal-target-list))
+				   word-end)))
+	       (group "mod" (+ blank)
+		      (group-n 2 word-start
+			       (or (eval (cons 'or ferm-module-name-list)))))
+	       (group "chain" (+ blank)
+		      (group-n 2 word-start (+ word) word-end))
+	       (group "@hook" (+ blank) (or "pre" "post" "flush"))))
+	 '(2 font-lock-type-face))
+    (cons (rx (eval (cons 'or ferm-terminal-target-list)))
+	  'font-lock-preprocessor-face)
+    (cons (rx (eval (cons 'or ferm-match-keyword-list)))
+	  'font-lock-builtin-face)
+    (cons (rx "&" word-start (+ word) word-end)
+	  'font-lock-function-name-face)
+    (cons (rx "$" word-start (+ word) word-end)
+	  'font-lock-variable-name-face)
+    (cons (rx (or bol blank)
+	       (or "domain" "table" "chain" "policy" "jump" "mod"
+		   "realgoto" "@subchain")
+	       word-end)
+     'font-lock-keyword-face)
+    (cons (rx (or bol blank) "@"
+	      (or "def" "include" "hook" "if" "else" "eq" "ne" "not" "resolve"
+		  "hook" "cat" "substr" "length" "basename" "dirname" "ipfilter")
+		  word-end)
+	  'font-lock-constant-face))))
 (provide 'ferm-mode)
 ;;; ferm-mode.el ends here
