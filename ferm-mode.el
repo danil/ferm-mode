@@ -45,12 +45,8 @@
 	"string" "tcpmss" "time" "tos" "ttl" "u32" "unclean"))
 (defconst ferm-match-keyword-list
   ;; A lot more to add
-  (list "interface" "outerface" "protocol" "saddr" "daddr" "fragment"
+  (list "interface" "outerface" "protocol" "saddr" "daddr" "fragment" "source" "destination"
 	"sport" "dport" "syn" "mac" "state"))
-
-(/ferm-define-face-variable ferm-automatic-variable-face
-    (:inherit font-lock-doc-face)
-    "Face to use for ferm automatic variables")
 
 (define-derived-mode ferm-mode shell-script-mode "ferm"
   (font-lock-add-keywords
@@ -75,7 +71,7 @@
 	 '(2 font-lock-type-face))
     (cons (rx (eval (cons 'or ferm-terminal-target-list)))
 	  'font-lock-preprocessor-face)
-    (cons (rx (eval (cons 'or ferm-match-keyword-list)))
+    (cons (rx word-start (eval (cons 'or ferm-match-keyword-list)) word-end)
 	  'font-lock-builtin-face)
     (cons (rx "&" word-start (+ word) word-end)
 	  'font-lock-function-name-face)
